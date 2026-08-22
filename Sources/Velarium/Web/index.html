@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0c">
+<title>Velarium</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="stage">
+  <div id="frame">
+    <img id="screen" alt="">
+  </div>
+  <div id="placeholder">
+    <div class="spinner"></div>
+    <p>Conectando con tu Mac…</p>
+  </div>
+</div>
+
+<div id="bar">
+  <span id="dot" class="dot"></span>
+  <span id="timer">0:00</span>
+  <span id="zoomBadge" class="badge" hidden>1.0×</span>
+</div>
+
+<div id="flash-left" class="flash"></div>
+<div id="flash-right" class="flash"></div>
+
+<div id="coach">
+  <div class="coach-row"><span class="glyph">↔</span> Deslizá para cambiar de diapositiva</div>
+  <div class="coach-row"><span class="glyph">⇲</span> Pellizcá para hacer zoom en la proyección</div>
+  <div class="coach-row"><span class="glyph">◷</span> Tocá el reloj para reiniciarlo</div>
+</div>
+
+<script>
+  window.VELARIUM = { wsPort: "__WS_PORT__", token: "__TOKEN__" };
+</script>
+<script src="app.js"></script>
+</body>
+</html>

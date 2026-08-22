@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Velarium</title>
+<meta name="description" content="Espejá y controlá la presentación de tu Mac desde el celular. Escaneás un QR y listo.">
+<meta name="theme-color" content="#fafafa">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Nunito:wght@700;800;900&display=swap">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/logo.png" sizes="512x512">
+<link rel="apple-touch-icon" href="/icono-180.png">
+<style>
+/* Committed to a single light theme, like the reference: no dark blocks, every
+   colour painted explicitly so the page holds on any host background. */
+:root {
+  --bg:        #fafafa;
+  --surface:   #ffffff;
+  --sunken:    #f3f3f3;
+  --border:    #ececec;
+  --text:      #1a1a1a;
+  --text-soft: #3a3a3a;
+  --solid:     #2e2e2e;
+  --on-solid:  #fafafa;
+
+  /* The screens stay dark in every context — they are screens, not surfaces. */
+  --screen:    #2a2a2a;
+  --screen-lit:#7d7d7d;
+  --screen-hi: #f0f0f0;
+  --bezel:     #171717;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.03), 0 10px 30px -14px rgba(0,0,0,.09);
+
+  --sans:  "Manrope", system-ui, -apple-system, sans-serif;
+  --round: "Nunito", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+
+  --radius:    20px;
+  --radius-sm: 12px;
+  --measure:   56ch;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--text-soft);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.shell {
+  max-width: 1020px;
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---------- Header ---------- */
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 2rem;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 800;
+  font-size: 1.65rem;
+  letter-spacing: -0.035em;
+  text-decoration: none;
+}
+
+/* El ícono de la app es una lámina crema con la figura al 60%: a 44px se
+   empasta. La marca del header es su versión de alto contraste — teja negra,
+   figura calada en blanco — que es lo único que se lee a este tamaño. */
+.wordmark .mark {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+footer .wordmark { font-size: 1.05rem; gap: 0.55rem; }
+footer .wordmark .mark { width: 26px; height: 26px; }
+
+
+/* ---------- Hero ---------- */
+
+.hero { padding-block: clamp(3rem, 8vw, 5.5rem) clamp(2.5rem, 5vw, 3.5rem); }
+
+h1 {
+  font-size: clamp(2.4rem, 5.6vw, 3.75rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  margin: 0;
+  max-width: 15ch;
+  text-wrap: balance;
+}
+
+.lede {
+  max-width: var(--measure);
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 1.5rem 0 0;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 2.5rem;
+}
+
+.download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.95rem 1.7rem;
+  background: var(--solid);
+  color: var(--on-solid);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  border-radius: 999px;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.download:hover { opacity: .86; transform: translateY(-1px); }
+.download svg { display: block; }
+
+.requirement {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* ---------- Cards ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- The demonstration ---------- */
+
+.demo {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.75rem, 4vw, 3rem);
+  align-items: center;
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+}
+
+@media (min-width: 780px) { .demo { grid-template-columns: 1fr auto; } }
+
+.mac, .handset {
+  position: relative;
+  background: var(--screen);
+  overflow: hidden;
+  /* Slide metrics resolve against the screen, not against the 300%-wide strip —
+     percentage padding would otherwise be measured against triple the width. */
+  container-type: size;
+}
+
+.mac { aspect-ratio: 16 / 10; border-radius: var(--radius-sm); }
+
+.handset {
+  width: 120px;
+  aspect-ratio: 9 / 19.5;
+  border-radius: 20px;
+  margin-inline: auto;
+  border: 4px solid var(--bezel);
+}
+
+/* Both surfaces run the same strip on the same timing — that they never drift
+   apart is the product's entire claim, so the page demonstrates it. */
+.strip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: 300%;
+  animation: advance 10.5s infinite;
+}
+
+.slide {
+  width: 33.3333%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6cqh;
+  padding: 9cqh 7cqw;
+}
+
+.slide .bar { height: 5cqh; background: var(--screen-lit); border-radius: 2px; }
+.slide .bar.title { height: 10cqh; width: 62%; background: var(--screen-hi); }
+.slide .bar.short { width: 44%; }
+.slide .bar.mid   { width: 78%; }
+
+.slide .plot { display: flex; align-items: flex-end; gap: 6%; height: 32cqh; }
+.slide .plot i { flex: 1; background: var(--screen-lit); border-radius: 2px; }
+
+@keyframes advance {
+  0%, 28%  { transform: translateX(0); }
+  33%, 61% { transform: translateX(-33.3333%); }
+  66%, 94% { transform: translateX(-66.6666%); }
+  100%     { transform: translateX(0); }
+}
+
+.thumb {
+  position: absolute;
+  left: 50%;
+  bottom: 15%;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  border-radius: 50%;
+  border: 1.5px solid var(--screen-hi);
+  opacity: 0;
+  animation: swipe 10.5s infinite;
+  pointer-events: none;
+}
+
+@keyframes swipe {
+  0%, 24%   { opacity: 0;   transform: translateX(22px); }
+  27%       { opacity: .8;  transform: translateX(22px); }
+  32%       { opacity: 0;   transform: translateX(-26px); }
+  57%       { opacity: 0;   transform: translateX(22px); }
+  60%       { opacity: .8;  transform: translateX(22px); }
+  65%       { opacity: 0;   transform: translateX(-26px); }
+  90%       { opacity: 0;   transform: translateX(22px); }
+  93%       { opacity: .8;  transform: translateX(22px); }
+  98%, 100% { opacity: 0;   transform: translateX(-26px); }
+}
+
+.caption {
+  max-width: none;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--text);
+  margin: 0.9rem 0 0;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strip { animation: none; }
+  .thumb { animation: none; opacity: .55; }
+}
+
+/* ---------- Sections ---------- */
+
+section { padding-block: clamp(3rem, 7vw, 4.5rem); }
+
+
+h2 {
+  font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+  max-width: 20ch;
+  text-wrap: balance;
+}
+
+h3 {
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.35;
+  margin: 0 0 0.55rem;
+}
+
+p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
+
+.grid {
+  display: grid;
+  gap: 1.1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.grid .card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.6rem 1.5rem 1.7rem;
+}
+
+.grid .icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  margin-bottom: 1.15rem;
+  color: var(--text);
+}
+
+/* Los títulos entran en una línea a propósito: dos tarjetas con encabezado de
+   distinto alto desalinean los párrafos y la fila se ve rota. */
+.grid h3 { margin-bottom: 0.4rem; }
+.grid p { color: var(--text-soft); font-size: 1rem; line-height: 1.45; }
+
+/* Numbered because the order is real: nothing works out of sequence. */
+.steps { display: grid; gap: 1.1rem; counter-reset: step; }
+
+.step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.35rem;
+  padding: 1.65rem 1.75rem;
+  align-items: start;
+}
+
+.step::before {
+  counter-increment: step;
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--sunken);
+  font-family: var(--round);
+  font-weight: 900;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.step p { color: var(--text-soft); font-size: 1rem; }
+
+/* ---------- Specs ---------- */
+
+.panel { padding: clamp(1.75rem, 4vw, 2.6rem); }
+.panel > p { color: var(--text-soft); }
+
+.specs {
+  display: grid;
+  gap: 0;
+  margin: 1.9rem 0 0;
+  max-width: 560px;
+}
+
+.spec {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-block: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.97rem;
+}
+
+.spec:last-child { border-bottom: none; padding-bottom: 0; }
+.spec dt { color: var(--text-soft); margin: 0; }
+.spec dd { margin: 0; font-family: var(--round); font-weight: 800; font-size: 0.92rem; text-align: right; }
+
+/* ---------- Footer ---------- */
+
+footer {
+  padding-block: 2.5rem 4rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+footer p { max-width: 44ch; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header>
+    <a class="wordmark" href="/">
+      <svg class="mark" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+        <rect width="44" height="44" rx="11" fill="var(--text)"/>
+        <rect x="8" y="9" width="21" height="15" rx="2.5" stroke="#fff" stroke-width="2"/>
+        <rect x="22" y="17" width="13" height="18" rx="3.5" fill="var(--text)" stroke="#fff" stroke-width="2"/>
+      </svg>
+      Velarium
+    </a>
+  </header>
+
+  <div class="hero">
+    <h1>Tu Mac, en tu mano.</h1>
+    <p class="lede">
+      Espejá la pantalla de tu Mac en el celular y pasá las diapositivas desde ahí.
+      Escaneás un QR y listo: sin instalar nada, sin cuentas, sin internet.
+    </p>
+    <div class="actions">
+      <a class="download" href="/Velarium.dmg" download>
+        <svg width="14" height="15" viewBox="0 0 15 16" fill="none" aria-hidden="true">
+          <path d="M7.5 1v9m0 0L4 6.5M7.5 10L11 6.5M1 12v2h13v-2"
+                stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Descargar para macOS
+      </a>
+      <span class="requirement">macOS 14 o posterior</span>
+    </div>
+  </div>
+
+  <div class="card demo">
+    <div>
+      <div class="mac">
+        <div class="strip">
+          <div class="slide">
+            <div class="bar title"></div><div class="bar mid"></div><div class="bar short"></div>
+          </div>
+          <div class="slide">
+            <div class="bar title"></div>
+            <div class="plot"><i style="height:40%"></i><i style="height:68%"></i><i style="height:52%"></i><i style="height:88%"></i><i style="height:61%"></i></div>
+          </div>
+          <div class="slide">
+            <div class="bar title"></div><div class="bar short"></div><div class="bar mid"></div><div class="bar short"></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">la Mac</p>
+    </div>
+
+    <div>
+      <div class="handset">
+        <div class="strip">
+          <div class="slide">
+            <div class="bar title"></div><div class="bar mid"></div><div class="bar short"></div>
+          </div>
+          <div class="slide">
+            <div class="bar title"></div>
+            <div class="plot"><i style="height:40%"></i><i style="height:68%"></i><i style="height:52%"></i><i style="height:88%"></i><i style="height:61%"></i></div>
+          </div>
+          <div class="slide">
+            <div class="bar title"></div><div class="bar short"></div><div class="bar mid"></div><div class="bar short"></div>
+          </div>
+        </div>
+        <div class="thumb"></div>
+      </div>
+      <p class="caption">el celular</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>Tres pasos.</h2>
+    <div class="steps">
+      <div class="card step">
+        <div>
+          <h3>Enchufás el proyector</h3>
+          <p>Velarium detecta el HDMI y muestra el QR.</p>
+        </div>
+      </div>
+      <div class="card step">
+        <div>
+          <h3>Escaneás con la cámara</h3>
+          <p>Se abre el navegador y ya controlás. No hay nada que tipear.</p>
+        </div>
+      </div>
+      <div class="card step">
+        <div>
+          <h3>Te alejás de la mesa</h3>
+          <p>Si el WiFi aísla los dispositivos, conectá la Mac al hotspot del celular.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Qué hace.</h2>
+    <div class="grid">
+      <div class="card">
+        <svg class="icon" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <rect x="1" y="3" width="17" height="12" rx="1.6" stroke="currentColor" stroke-width="1.7"/>
+          <rect x="14" y="12" width="11" height="13" rx="2" fill="var(--surface)" stroke="currentColor" stroke-width="1.7"/>
+        </svg>
+        <h3>Espeja tu pantalla</h3>
+        <p>Ves en el celular lo mismo que ve el público. No te das vuelta.</p>
+      </div>
+      <div class="card">
+        <svg class="icon" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <rect x="1" y="4" width="24" height="18" rx="1.6" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M10 9.5l3.5 3.5L10 16.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3>Pasa las diapositivas</h3>
+        <p>Deslizás y avanza. Anda con Keynote, PowerPoint, PDF y Slides.</p>
+      </div>
+      <div class="card">
+        <svg class="icon" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M8 11h6M11 8v6M17 17l7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <h3>Amplía para el fondo</h3>
+        <p>Pellizcás en el celular y la pantalla grande hace zoom.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card panel">
+      <h2>Tus diapositivas no salen de tu Mac.</h2>
+      <p>
+        Tu Mac le sirve la página al celular por la red local. No hay servidor en el medio
+        ni hace falta internet.
+      </p>
+      <dl class="specs">
+        <div class="spec"><dt>Requisitos</dt><dd>macOS 14+</dd></div>
+        <div class="spec"><dt>En el celular</dt><dd>cualquier navegador</dd></div>
+        <div class="spec"><dt>Conexión</dt><dd>red local o hotspot</dd></div>
+        <div class="spec"><dt>Permisos</dt><dd>pantalla, accesibilidad</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <footer>
+    <span class="wordmark"><svg class="mark" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+      <rect width="44" height="44" rx="11" fill="var(--text)"/>
+      <rect x="8" y="9" width="21" height="15" rx="2.5" stroke="#fff" stroke-width="2"/>
+      <rect x="22" y="17" width="13" height="18" rx="3.5" fill="var(--text)" stroke="#fff" stroke-width="2"/>
+    </svg> Velarium</span>
+    <p>Firmado y notarizado por Apple.</p>
+  </footer>
+
+</div>
+</body>
+</html>
