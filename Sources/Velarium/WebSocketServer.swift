@@ -11,6 +11,7 @@ final class WebSocketServer {
         case previous
         case escape
         case zoom(scale: Double, x: Double, y: Double)
+        case pan(dx: Double, dy: Double)
         case zoomEnded
     }
 
@@ -151,6 +152,8 @@ final class WebSocketServer {
             let x = json["x"] as? Double ?? 0.5
             let y = json["y"] as? Double ?? 0.5
             command = .zoom(scale: scale, x: x, y: y)
+        case "pan":
+            command = .pan(dx: json["dx"] as? Double ?? 0, dy: json["dy"] as? Double ?? 0)
         case "zoomEnd": command = .zoomEnded
         default: command = nil
         }

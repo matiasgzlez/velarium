@@ -89,7 +89,6 @@
     const fit = Math.min(w / natW, h / natH);
     frameEl.style.width = Math.round(natW * fit) + 'px';
     frameEl.style.height = Math.round(natH * fit) + 'px';
-    applyTransform();
   }
 
   new ResizeObserver(layout).observe(stage);
@@ -98,51 +97,31 @@
 
   // ---------------------------------------------------------------- zoom
 
+  // El zoom ya no se dibuja acá: se le pide a la app de la Mac con ⌘+, ella
+  // redibuja nítida y el espejado nos devuelve el resultado. Por eso no
+  // aplicamos ninguna transformación local — sería zoom sobre zoom.
+
   let scale = 1;
-  let fx = 0.5, fy = 0.5;   // image point held at the centre of the screen
   let zoomQueued = false;
 
-  function shift() {
-    const W = frameEl.clientWidth, H = frameEl.clientHeight;
-    const maxX = W * (scale - 1) / 2;
-    const maxY = H * (scale - 1) / 2;
-    return {
-      x: clamp((0.5 - fx) * W * scale, -maxX, maxX),
-      y: clamp((0.5 - fy) * H * scale, -maxY, maxY),
-    };
-  }
-
-  function applyTransform() {
-    const s = shift();
-    // CSS applies translate before scale, so divide out the scale factor.
-    img.style.transform = `scale(${scale}) translate(${s.x / scale}px, ${s.y / scale}px)`;
+  function showBadge() {
     zoomBadge.textContent = scale.toFixed(1) + '×';
     zoomBadge.hidden = scale <= 1.01;
   }
 
-  /** Element coordinates -> normalised image coordinates. */
-  function toImage(ex, ey) {
-    const W = frameEl.clientWidth, H = frameEl.clientHeight;
-    const s = shift();
-    return {
-      x: (ex - W / 2 - s.x) / (scale * W) + 0.5,
-      y: (ey - H / 2 - s.y) / (scale * H) + 0.5,
-    };
-  }
-
-  /** Mirrors our zoom onto the projector. Coalesced to one message per frame. */
+  /** Coalesced to one message per frame. */
   function pushZoom() {
     if (zoomQueued) return;
     zoomQueued = true;
     requestAnimationFrame(() => {
       zoomQueued = false;
-      send({ t: 'zoom', scale, x: fx, y: fy });
+      send({ t: 'zoom', scale });
     });
   }
 
   function resetZoom() {
-    scale = 1; fx = 0.5; fy = 0.5;
-    applyTransform();
+    scale = 1;
+    showBadge();
     send({ t: 'zoomEnd' });
   }
 
@@ -162,11 +141,6 @@
   let start = null;      // one-finger gesture origin
   let pinch = null;      // two-finger gesture origin
 
-  function localPoint(touch) {
-    const box = frameEl.getBoundingClientRect();
-    return { x: touch.clientX - box.left, y: touch.clientY - box.top };
-  }
-
   function distance(a, b) {
     return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   }
@@ -176,19 +150,11 @@
     if (event.touches.length === 2) {
       event.preventDefault();
       const [a, b] = event.touches;
-      const mid = localPoint({
-        clientX: (a.clientX + b.clientX) / 2,
-        clientY: (a.clientY + b.clientY) / 2,
-      });
-      pinch = {
-        distance: distance(a, b),
-        scale,
-        anchor: toImage(mid.x, mid.y),
-      };
+      pinch = { distance: distance(a, b), scale };
       start = null;
     } else if (event.touches.length === 1) {
       const touch = event.touches[0];
-      start = { x: touch.clientX, y: touch.clientY, at: Date.now(), fx, fy };
+      start = { x: touch.clientX, y: touch.clientY, at: Date.now() };
     }
   }, { passive: false });
 
@@ -198,30 +164,18 @@
     event.preventDefault();
     if (pinch && event.touches.length === 2) {
       const [a, b] = event.touches;
-      const next = clamp(pinch.scale * (distance(a, b) / pinch.distance), 1, MAX_ZOOM);
-      const mid = localPoint({
-        clientX: (a.clientX + b.clientX) / 2,
-        clientY: (a.clientY + b.clientY) / 2,
-      });
-
-      scale = next;
-      // Keep the point the fingers grabbed pinned underneath them.
-      const W = frameEl.clientWidth, H = frameEl.clientHeight;
-      fx = 0.5 - (mid.x - W / 2 - scale * (pinch.anchor.x - 0.5) * W) / (W * scale);
-      fy = 0.5 - (mid.y - H / 2 - scale * (pinch.anchor.y - 0.5) * H) / (H * scale);
-
-      if (scale <= 1.02) { scale = 1; fx = 0.5; fy = 0.5; }
-      applyTransform();
+      scale = clamp(pinch.scale * (distance(a, b) / pinch.distance), 1, MAX_ZOOM);
+      if (scale <= 1.02) scale = 1;
+      showBadge();
       pushZoom();
 
     } else if (start && scale > 1 && event.touches.length === 1) {
-      // Zoomed in, so a single finger pans instead of changing slides.
+      // Con la app ampliada, un dedo mueve la vista en vez de cambiar de
+      // diapositiva. Se manda el desplazamiento y la Mac lo hace scrollear.
       const touch = event.touches[0];
-      const W = frameEl.clientWidth, H = frameEl.clientHeight;
-      fx = start.fx - (touch.clientX - start.x) / (W * scale);
-      fy = start.fy - (touch.clientY - start.y) / (H * scale);
-      applyTransform();
-      pushZoom();
+      send({ t: 'pan', dx: touch.clientX - start.x, dy: touch.clientY - start.y });
+      start.x = touch.clientX;
+      start.y = touch.clientY;
     }
   }, { passive: false });
 

@@ -84,6 +84,11 @@ python3 -m http.server 4321 --directory site   # la landing, que no tiene build
 
 ## Trampas conocidas
 
+- **El zoom no amplía la captura.** Se probó y se descartó: agrandar un bitmap
+  siempre pierde nitidez, y encima el overlay que lo dibujaba se capturaba a sí
+  mismo y quedaba fuera del duplicado por AirPlay. Ahora se le manda ⌘+ a la app
+  de adelante, que redibuja nítida. El costo: no funciona en Keynote ni
+  PowerPoint en modo presentación, que ignoran ese atajo.
 - **`Bundle.module` no sirve acá.** En un target ejecutable busca los recursos al lado del
   binario, no en `Contents/Resources`, y aborta el proceso si no los encuentra en vez de
   devolver nil. Se usa `AppDelegate.locateWebRoot()`.

@@ -10,7 +10,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var http: HTTPServer!
     private var sockets: WebSocketServer!
     private let capturer = ScreenCapturer()
-    private let overlay = ZoomOverlay()
     private let pathMonitor = NWPathMonitor()
 
     // UI
@@ -23,10 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionButton: PillButton!
     private let qrCard = Style.card()
 
-    /// El último frame capturado. Con diapositivas quietas ScreenCaptureKit no
-    /// entrega nada nuevo, así que sin esto el overlay abriría en negro y se
-    /// quedaría así hasta que algo en la pantalla cambiara.
-    private var lastFrame: CGImage?
+    /// Pasos de zoom que ya le pedimos a la app de adelante, para mandar sólo la
+    /// diferencia cuando el celular manda una escala nueva.
+    private var zoomSteps = 0
     private var connectedPhones = 0
     private var framesSent = 0
     private var statusItem: NSStatusItem?
@@ -55,7 +53,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationWillTerminate(_ notification: Notification) {
-        overlay.hide()
         http?.stop()
         sockets?.stop()
     }
@@ -203,7 +200,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let displays = try? await capturer.refreshDisplays() else { return }
             buildDisplayPicker(displays)
             if let target = preferredDisplay(among: displays), target != capturer.activeDisplayID {
-                overlay.hide()
                 try? await capturer.start(displayID: target)
                 log("cambiado a la pantalla \(target)")
             }
@@ -341,11 +337,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.sockets.broadcast(frame: frame.jpeg)
             self.framesSent += 1
             if self.framesSent % 100 == 1 { self.log("frames enviados: \(self.framesSent)") }
-            DispatchQueue.main.async {
-                self.lastFrame = frame.full
-                guard self.overlay.isActive else { return }
-                self.overlay.present(frame.full)
-            }
+
         }
         capturer.onStopped = { [weak self] message in
             self?.statusLabel.stringValue = "Captura detenida: \(message)"
@@ -392,7 +384,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func displayChanged() {
         let id = CGDirectDisplayID(displayPicker.selectedTag())
-        overlay.hide()
         Task { try? await capturer.start(displayID: id) }
     }
 
@@ -418,6 +409,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: - Zoom
+
+    /// El pellizco llega como una escala continua, pero ⌘+ es un escalón. Se
+    /// traduce a una cantidad de pasos y sólo se manda la diferencia con lo que
+    /// ya está aplicado, así un pellizco largo no dispara cien pulsaciones.
+    private func applyZoom(scale: Double) {
+        let target = min(max(Int((scale - 1) * 4), 0), 8)
+        while zoomSteps < target {
+            InputController.zoomIn()
+            zoomSteps += 1
+        }
+        while zoomSteps > target {
+            InputController.zoomOut()
+            zoomSteps -= 1
+        }
+    }
+
     // MARK: - Commands from the phone
 
     private func handle(_ command: WebSocketServer.Command) {
@@ -428,16 +436,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             InputController.previous()
         case .escape:
             InputController.escapeKey()
-        case .zoom(let scale, let x, let y):
-            if scale <= 1.01 {
-                overlay.hide()
-            } else {
-                overlay.show(on: capturer.activeDisplayID)
-                if let lastFrame { overlay.present(lastFrame) }
-                overlay.update(scale: CGFloat(scale), x: CGFloat(x), y: CGFloat(y))
-            }
+        case .zoom(let scale, _, _):
+            applyZoom(scale: scale)
+        case .pan(let dx, let dy):
+            InputController.scroll(dx: Int32(dx), dy: Int32(dy))
         case .zoomEnded:
-            overlay.hide()
+            InputController.zoomReset()
+            zoomSteps = 0
         }
     }
 }
