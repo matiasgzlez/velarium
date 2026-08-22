@@ -256,6 +256,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.connectedPhones = count
             self?.refreshStatus()
         }
+        sockets.onClientAuthenticated = { [weak self] in
+            self?.sendDisplaysToWeb()
+            self?.sendWindowsToWeb()
+        }
         sockets.onFailure = { [weak self] message in
             self?.statusLabel.stringValue = "Error de red: \(message)"
         }
@@ -366,6 +370,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return displays.first?.displayID
     }
 
+    private func sendDisplaysToWeb() {
+        let displaysInfo: [[String: Any]] = capturer.displays.enumerated().map { index, display in
+            let isMain = display.displayID == CGMainDisplayID()
+            let title = isMain
+                ? "Pantalla \(index + 1) (principal)"
+                : "Pantalla \(index + 1) (\(display.width)×\(display.height))"
+            return [
+                "id": display.displayID,
+                "name": title,
+                "active": display.displayID == capturer.activeDisplayID
+            ]
+        }
+        sockets?.broadcast(json: ["t": "displays", "list": displaysInfo])
+    }
+
     private func buildDisplayPicker(_ displays: [SCDisplay]) {
         guard displays.count > 1 else { displayPicker.isHidden = true; return }
         displayPicker.removeAllItems()
@@ -380,11 +399,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             displayPicker.selectItem(withTag: Int(preferred))
         }
         displayPicker.isHidden = false
+        sendDisplaysToWeb()
     }
 
     @objc private func displayChanged() {
         let id = CGDirectDisplayID(displayPicker.selectedTag())
-        Task { try? await capturer.start(displayID: id) }
+        Task {
+            try? await capturer.start(displayID: id)
+            sendDisplaysToWeb()
+        }
     }
 
     // MARK: - Permissions
@@ -411,18 +434,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Zoom
 
-    /// El pellizco llega como una escala continua, pero ⌘+ es un escalón. Se
-    /// traduce a una cantidad de pasos y sólo se manda la diferencia con lo que
-    /// ya está aplicado, así un pellizco largo no dispara cien pulsaciones.
+    /// El pellizco llega como una escala continua. Permitimos hasta 30 pasos de ⌘+
+    /// para poder ampliar mucho más en PDFs o páginas web.
     private func applyZoom(scale: Double) {
-        let target = min(max(Int((scale - 1) * 4), 0), 8)
-        while zoomSteps < target {
-            InputController.zoomIn()
-            zoomSteps += 1
-        }
-        while zoomSteps > target {
-            InputController.zoomOut()
-            zoomSteps -= 1
+        // El zoom es 100% visual y fluido en alta resolución sin alterar la resolución de la pestaña en el navegador
+    }
+
+    private func sendWindowsToWeb() {
+        Task { @MainActor in
+            guard let windows = try? await capturer.getOpenWindows() else { return }
+            sockets?.broadcast(json: ["t": "windows", "list": windows])
         }
     }
 
@@ -436,6 +457,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             InputController.previous()
         case .escape:
             InputController.escapeKey()
+        case .switchApp:
+            InputController.switchApp()
+        case .fullScreen:
+            InputController.fullScreen()
+        case .nextTab:
+            InputController.nextTab()
+        case .prevTab:
+            InputController.prevTab()
+        case .nextWindow:
+            InputController.nextWindow()
+        case .laser(let active, let x, let y):
+            LaserPointer.shared.update(active: active, x: x, y: y, displayID: capturer.activeDisplayID)
+        case .requestWindows:
+            sendWindowsToWeb()
+        case .selectWindow(let pid, _, let title):
+            InputController.bringWindowToFront(pid: pid, title: title)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.sendWindowsToWeb()
+            }
+        case .selectDisplay(let id):
+            let targetID = CGDirectDisplayID(id)
+            Task { @MainActor in
+                try? await self.capturer.start(displayID: targetID)
+                self.displayPicker.selectItem(withTag: Int(targetID))
+                self.sendDisplaysToWeb()
+            }
         case .zoom(let scale, _, _):
             applyZoom(scale: scale)
         case .pan(let dx, let dy):

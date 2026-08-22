@@ -7,34 +7,75 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0a0c">
 <title>Velarium</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icono-180.png">
+<link rel="icon" type="image/png" sizes="180x180" href="icono-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<header id="header" class="collapsed">
+  <button id="toolsToggleBtn" class="tools-toggle-btn" title="Herramientas">
+    <span class="tools-icon">🛠️</span>
+    <span id="dot" class="dot"></span>
+    <span id="timer">0:00</span>
+    <span id="zoomBadge" class="badge" hidden>1.0×</span>
+  </button>
+  <div id="toolsMenu" class="tools-menu">
+    <button id="laserBtn" class="bar-btn" title="Activar Puntero Láser">🔴 Láser</button>
+    <button id="windowsBtn" class="bar-btn" title="Ver Pestañas y Ventanas abiertas">🗂️ Pestañas</button>
+    <button id="fullScreenBtn" class="bar-btn" title="Agrandar a Pantalla Completa">⛶ Agrandar</button>
+    <button id="installBtn" class="bar-btn highlight" title="Instalar como App a Pantalla Completa">📲 Instalar</button>
+    <button id="minimizeBtn" class="bar-btn mini" title="Ocultar a la izquierda">◀</button>
+  </div>
+</header>
+
 <div id="stage">
   <div id="frame">
-    <img id="screen" alt="">
+    <canvas id="screen"></canvas>
   </div>
   <div id="placeholder">
     <div class="spinner"></div>
-    <p>Conectando con tu Mac…</p>
+    <p id="statusMsg">Conectando con tu Mac…</p>
   </div>
 </div>
 
-<div id="bar">
-  <span id="dot" class="dot"></span>
-  <span id="timer">0:00</span>
-  <span id="zoomBadge" class="badge" hidden>1.0×</span>
+<div id="windowModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>Pestañas y Ventanas en tu Mac</span>
+      <button id="closeWindowModalBtn" class="close-btn">&times;</button>
+    </div>
+    <div id="windowList" class="window-list">
+      <div class="window-loading">Buscando pestañas y ventanas...</div>
+    </div>
+  </div>
 </div>
+
+<div id="installModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>📲 Instalar App a Pantalla Completa</span>
+      <button id="closeInstallModalBtn" class="close-btn">&times;</button>
+    </div>
+    <div class="install-steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-text">Tocá el botón <strong>Compartir</strong> <span class="share-icon">⎋</span> en la barra de tu navegador (Safari / Chrome).</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-text">Seleccioná <strong>"Agregar a inicio"</strong> (o <em>Add to Home Screen</em>).</div>
+      </div>
+      <p class="install-note">¡Listo! Se abrirá como una App nativa sin barras ni navegador.</p>
+    </div>
+  </div>
+</div>
+
 
 <div id="flash-left" class="flash"></div>
 <div id="flash-right" class="flash"></div>
-
-<div id="coach">
-  <div class="coach-row"><span class="glyph">↔</span> Deslizá para cambiar de diapositiva</div>
-  <div class="coach-row"><span class="glyph">⇲</span> Pellizcá para hacer zoom en la proyección</div>
-  <div class="coach-row"><span class="glyph">◷</span> Tocá el reloj para reiniciarlo</div>
-</div>
 
 <script>
   window.VELARIUM = { wsPort: "__WS_PORT__", token: "__TOKEN__" };

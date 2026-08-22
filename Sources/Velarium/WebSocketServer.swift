@@ -13,6 +13,15 @@ final class WebSocketServer {
         case zoom(scale: Double, x: Double, y: Double)
         case pan(dx: Double, dy: Double)
         case zoomEnded
+        case selectDisplay(id: UInt32)
+        case switchApp
+        case fullScreen
+        case nextTab
+        case prevTab
+        case nextWindow
+        case selectWindow(pid: pid_t, windowID: UInt32, title: String)
+        case requestWindows
+        case laser(active: Bool, x: Double, y: Double)
     }
 
     private(set) var boundPort: UInt16 = 0
@@ -22,15 +31,17 @@ final class WebSocketServer {
 
     var onCommand: ((Command) -> Void)?
     var onClientCountChanged: ((Int) -> Void)?
+    var onClientAuthenticated: (() -> Void)?
     var onReady: ((UInt16) -> Void)?
     var onFailure: ((String) -> Void)?
 
     private final class Client {
         let connection: NWConnection
         var authenticated = false
-        /// Frames are dropped rather than queued while one is still going out,
-        /// so a slow phone falls behind in quality, never in latency.
-        var sending = false
+        /// Permite hasta 2 cuadros en vuelo para lograr 60 FPS continuos sin parates.
+        var inFlight = 0
+        var sentAt = Date.distantPast
+        var stalled: Bool { inFlight > 0 && Date().timeIntervalSince(sentAt) > 1 }
         init(_ connection: NWConnection) { self.connection = connection }
     }
 
@@ -83,7 +94,7 @@ final class WebSocketServer {
 
     // MARK: - Connections
 
-    private func accept(_ connection: NWConnection) {
+    func accept(_ connection: NWConnection) {
         let client = Client(connection)
         queue.async { self.clients[ObjectIdentifier(connection)] = client }
 
@@ -135,10 +146,18 @@ final class WebSocketServer {
             if kind == "auth", let given = json["token"] as? String, given == token {
                 client.authenticated = true
                 let count = clients.values.filter(\.authenticated).count
-                DispatchQueue.main.async { self.onClientCountChanged?(count) }
+                DispatchQueue.main.async {
+                    self.onClientCountChanged?(count)
+                    self.onClientAuthenticated?()
+                }
             } else {
                 client.connection.cancel()
             }
+            return
+        }
+
+        if kind == "ack" {
+            if client.inFlight > 0 { client.inFlight -= 1 }
             return
         }
 
@@ -147,6 +166,30 @@ final class WebSocketServer {
         case "next": command = .next
         case "prev": command = .previous
         case "esc":  command = .escape
+        case "switchApp": command = .switchApp
+        case "fullscreen": command = .fullScreen
+        case "nextTab": command = .nextTab
+        case "prevTab": command = .prevTab
+        case "nextWindow": command = .nextWindow
+        case "laser":
+            let active = json["active"] as? Bool ?? false
+            let x = json["x"] as? Double ?? 0.5
+            let y = json["y"] as? Double ?? 0.5
+            command = .laser(active: active, x: x, y: y)
+        case "requestWindows": command = .requestWindows
+        case "selectWindow":
+            let pid = json["pid"] as? Int32 ?? 0
+            let windowID = json["windowID"] as? UInt32 ?? 0
+            let title = json["title"] as? String ?? ""
+            command = .selectWindow(pid: pid, windowID: windowID, title: title)
+        case "selectDisplay":
+            if let idNum = json["id"] as? UInt32 {
+                command = .selectDisplay(id: idNum)
+            } else if let idInt = json["id"] as? Int {
+                command = .selectDisplay(id: UInt32(idInt))
+            } else {
+                command = nil
+            }
         case "zoom":
             let scale = json["scale"] as? Double ?? 1
             let x = json["x"] as? Double ?? 0.5
@@ -164,19 +207,26 @@ final class WebSocketServer {
 
     // MARK: - Sending
 
-    /// Pushes a JPEG to every connected phone, skipping any that is still busy.
+    /// Pushes a JPEG to every connected phone.
+    /// Multi-buffered streaming up to 3 frames in flight ensures smooth 120fps movement.
     func broadcast(frame: Data) {
         queue.async {
-            for client in self.clients.values where client.authenticated && !client.sending {
-                client.sending = true
+            for client in self.clients.values where client.authenticated && (client.inFlight < 3 || client.stalled) {
+                if client.stalled { client.inFlight = 0 }
+                client.inFlight += 1
+                client.sentAt = Date()
                 let metadata = NWProtocolWebSocket.Metadata(opcode: .binary)
                 let context = NWConnection.ContentContext(identifier: "frame", metadata: [metadata])
                 client.connection.send(content: frame,
                                        contentContext: context,
                                        isComplete: true,
-                                       completion: .contentProcessed { _ in
-                    self.queue.async { client.sending = false }
-                })
+                                       completion: .contentProcessed { [weak self, weak client] error in
+                                           if error != nil {
+                                               self?.queue.async {
+                                                   if let client { client.inFlight = max(0, client.inFlight - 1) }
+                                               }
+                                           }
+                                       })
             }
         }
     }

@@ -9,10 +9,49 @@ enum InputController {
     private static let rightArrow: CGKeyCode = 0x7C
     private static let leftArrow: CGKeyCode  = 0x7B
     private static let escape: CGKeyCode     = 0x35
+    private static let tabKey: CGKeyCode     = 0x30
+    private static let fKey: CGKeyCode       = 0x03
+    private static let backtickKey: CGKeyCode = 0x32
 
     static func next() { tap(rightArrow) }
     static func previous() { tap(leftArrow) }
     static func escapeKey() { tap(escape) }
+    static func switchApp() { tap(tabKey, flags: .maskCommand) }
+    static func fullScreen() { tap(fKey, flags: [.maskControl, .maskCommand]) }
+    static func nextTab() { tap(tabKey, flags: .maskControl) }
+    static func prevTab() { tap(tabKey, flags: [.maskControl, .maskShift]) }
+    static func nextWindow() { tap(backtickKey, flags: .maskCommand) }
+
+    /// Eleva al frente la ventana específica indicada por título y PID, permitiendo
+    /// cambiar entre múltiples archivos/ventanas de la misma aplicación (ej. varios PDFs en Vista Previa).
+    static func bringWindowToFront(pid: pid_t, title: String) {
+        let appElement = AXUIElementCreateApplication(pid)
+        AXUIElementSetAttributeValue(appElement, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+
+        if let app = NSRunningApplication(processIdentifier: pid) {
+            app.activate()
+        }
+
+        guard !title.isEmpty else { return }
+
+        var windowsRef: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
+
+        if result == .success, let windows = windowsRef as? [AXUIElement] {
+            for window in windows {
+                var titleRef: CFTypeRef?
+                if AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef) == .success,
+                   let windowTitle = titleRef as? String {
+                    if windowTitle == title || windowTitle.contains(title) || title.contains(windowTitle) {
+                        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+                        AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+                        AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+                        break
+                    }
+                }
+            }
+        }
+    }
 
     /// El zoom se lo pedimos a la app de adelante con ⌘+ / ⌘- en vez de ampliar
     /// la captura: la app redibuja a resolución completa, así que no se pierde

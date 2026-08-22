@@ -9,6 +9,7 @@ final class HTTPServer {
     private(set) var boundPort: UInt16 = 0
     /// Injected into index.html so the page knows where its socket lives.
     var wsPort: UInt16 = 0
+    var webSocketHandler: ((NWConnection) -> Void)?
     var onReady: ((UInt16) -> Void)?
     var onFailure: ((String) -> Void)?
 
@@ -25,8 +26,6 @@ final class HTTPServer {
     func start() throws {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
-        // Port 0 lets the OS hand us a free one, so we never collide with
-        // whatever else the user happens to be running.
         let listener = try NWListener(using: params, on: .any)
         listener.newConnectionHandler = { [weak self] connection in
             self?.accept(connection)
@@ -98,6 +97,65 @@ final class HTTPServer {
             return send(status: "403 Forbidden", body: Data(), type: "text/plain", on: connection)
         }
 
+        if name == "install.mobileconfig" {
+            let hostHeader = head.split(separator: "\r\n").first(where: { $0.lowercased().starts(with: "host:") })?.split(separator: ":").dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces) ?? "localhost:\(boundPort)"
+            let appURL = "http://\(hostHeader)/?t=\(token)"
+
+            var iconTag = ""
+            if let iconData = try? Data(contentsOf: webRoot.appendingPathComponent("icono-180.png")) {
+                let base64 = iconData.base64EncodedString()
+                iconTag = "<key>Icon</key><data>\(base64)</data>"
+            }
+
+            let mobileConfig = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                <key>PayloadContent</key>
+                <array>
+                    <dict>
+                        <key>FullScreen</key>
+                        <true/>
+                        <key>IsRemovable</key>
+                        <true/>
+                        <key>Label</key>
+                        <string>Velarium</string>
+                        <key>PayloadDescription</key>
+                        <string>App Nativa Velarium</string>
+                        <key>PayloadDisplayName</key>
+                        <string>Velarium</string>
+                        <key>PayloadIdentifier</key>
+                        <string>app.velarium.webclip</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.webClip.managed</string>
+                        <key>PayloadUUID</key>
+                        <string>A1B2C3D4-E5F6-7890-ABCD-EF1234567890</string>
+                        <key>PayloadVersion</key>
+                        <integer>1</integer>
+                        \(iconTag)
+                        <key>URL</key>
+                        <string>\(appURL)</string>
+                    </dict>
+                </array>
+                <key>PayloadDisplayName</key>
+                <string>Velarium App</string>
+                <key>PayloadIdentifier</key>
+                <string>app.velarium.profile</string>
+                <key>PayloadRemovalDisallowed</key>
+                <false/>
+                <key>PayloadType</key>
+                <string>Configuration</string>
+                <key>PayloadUUID</key>
+                <string>B2C3D4E5-F6A7-8901-BCDE-F12345678901</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+            </dict>
+            </plist>
+            """
+            return send(status: "200 OK", body: Data(mobileConfig.utf8), type: "application/x-apple-aspen-config", on: connection)
+        }
+
         let file = webRoot.appendingPathComponent(name)
         guard var body = try? Data(contentsOf: file) else {
             return send(status: "404 Not Found", body: Data("no encontrado".utf8), type: "text/plain", on: connection)
@@ -137,6 +195,8 @@ final class HTTPServer {
         if name.hasSuffix(".css")  { return "text/css; charset=utf-8" }
         if name.hasSuffix(".svg")  { return "image/svg+xml" }
         if name.hasSuffix(".png")  { return "image/png" }
+        if name.hasSuffix(".json") { return "application/json" }
+        if name.hasSuffix(".ico")  { return "image/x-icon" }
         return "application/octet-stream"
     }
 }
