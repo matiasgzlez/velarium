@@ -1,4 +1,4 @@
-<img src="site/marca.png" width="76" alt="">
+<img src="site/logo.png" width="88" alt="">
 
 # Velarium
 
@@ -83,8 +83,3 @@ open build/Velarium.app
 cp build/Velarium.dmg site/   # queda servido en /Velarium.dmg
 vercel deploy site --prod     # requiere: npm i -g vercel
 ```
-
----
-
-El *velarium* era el toldo que los romanos tendían sobre el Coliseo para el público: la
-pantalla gigante sobre la audiencia.
