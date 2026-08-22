@@ -19,7 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusLabel = NSTextField(labelWithString: "Iniciando…")
     private let hintLabel = NSTextField(labelWithString: "")
     private let displayPicker = NSPopUpButton()
-    private let permissionButton = NSButton(title: "", target: nil, action: nil)
+    private var permissionButton: PillButton!
+    private let qrCard = Style.card()
 
     private var connectedPhones = 0
     private var framesSent = 0
@@ -56,30 +57,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Window
 
     private func buildWindow() {
-        let content = NSView(frame: NSRect(x: 0, y: 0, width: 460, height: 620))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: 460, height: 640))
+        content.wantsLayer = true
+        content.layer?.backgroundColor = Style.bg.cgColor
 
         let title = NSTextField(labelWithString: "Velarium")
-        title.font = .systemFont(ofSize: 26, weight: .semibold)
+        title.font = Style.display(30)
+        title.textColor = Style.text
 
         let subtitle = NSTextField(labelWithString: "Escaneá con la cámara del celular")
-        subtitle.font = .systemFont(ofSize: 13)
-        subtitle.textColor = .secondaryLabelColor
+        subtitle.font = Style.body(13)
+        subtitle.textColor = Style.textSoft
 
         qrView.imageScaling = .scaleProportionallyUpOrDown
-        qrView.wantsLayer = true
-        qrView.layer?.backgroundColor = NSColor.white.cgColor
-        qrView.layer?.cornerRadius = 12
 
-        urlLabel.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        urlLabel.textColor = .secondaryLabelColor
+        // El QR vive dentro de una tarjeta blanca, como los bloques de la landing.
+        qrCard.translatesAutoresizingMaskIntoConstraints = false
+        qrView.translatesAutoresizingMaskIntoConstraints = false
+        qrCard.addSubview(qrView)
+
+        urlLabel.font = Style.label(12, .bold)
+        urlLabel.textColor = Style.text
         urlLabel.alignment = .center
         urlLabel.isSelectable = true
 
-        statusLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        statusLabel.font = Style.label(13, .heavy)
+        statusLabel.textColor = Style.text
         statusLabel.alignment = .center
 
-        hintLabel.font = .systemFont(ofSize: 11)
-        hintLabel.textColor = .tertiaryLabelColor
+        hintLabel.font = Style.body(11)
+        hintLabel.textColor = Style.textSoft
         hintLabel.alignment = .center
         hintLabel.maximumNumberOfLines = 3
         hintLabel.lineBreakMode = .byWordWrapping
@@ -87,31 +94,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         displayPicker.target = self
         displayPicker.action = #selector(displayChanged)
         displayPicker.isHidden = true
+        displayPicker.font = Style.body(12)
 
-        permissionButton.target = self
-        permissionButton.action = #selector(permissionTapped)
-        permissionButton.bezelStyle = .rounded
+        permissionButton = PillButton(target: self, action: #selector(permissionTapped))
         permissionButton.isHidden = true
 
         let stack = NSStackView(views: [
-            title, subtitle, qrView, urlLabel, statusLabel, permissionButton, displayPicker, hintLabel
+            title, subtitle, qrCard, urlLabel, statusLabel, permissionButton, displayPicker, hintLabel
         ])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 12
-        stack.setCustomSpacing(4, after: title)
-        stack.setCustomSpacing(20, after: subtitle)
-        stack.setCustomSpacing(14, after: qrView)
+        stack.setCustomSpacing(6, after: title)
+        stack.setCustomSpacing(24, after: subtitle)
+        stack.setCustomSpacing(18, after: qrCard)
+        stack.setCustomSpacing(16, after: statusLabel)
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
 
+        let pad: CGFloat = 18
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: content.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: content.centerYAnchor),
             stack.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor, constant: -48),
-            qrView.widthAnchor.constraint(equalToConstant: 260),
-            qrView.heightAnchor.constraint(equalToConstant: 260),
-            hintLabel.widthAnchor.constraint(equalToConstant: 360),
+
+            qrView.widthAnchor.constraint(equalToConstant: 250),
+            qrView.heightAnchor.constraint(equalToConstant: 250),
+            qrView.topAnchor.constraint(equalTo: qrCard.topAnchor, constant: pad),
+            qrView.bottomAnchor.constraint(equalTo: qrCard.bottomAnchor, constant: -pad),
+            qrView.leadingAnchor.constraint(equalTo: qrCard.leadingAnchor, constant: pad),
+            qrView.trailingAnchor.constraint(equalTo: qrCard.trailingAnchor, constant: -pad),
+
+            hintLabel.widthAnchor.constraint(equalToConstant: 350),
         ])
 
         window = NSWindow(contentRect: content.frame,
@@ -119,6 +133,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                           backing: .buffered,
                           defer: false)
         window.title = "Velarium"
+        // La landing está comprometida con un solo tema claro, y la app también:
+        // el QR se lee mejor sobre blanco y las dos cosas se ven como una sola.
+        window.appearance = NSAppearance(named: .aqua)
+        window.backgroundColor = Style.bg
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.contentView = content
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -180,7 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func announceProjector() {
         showWindow()
         statusLabel.stringValue = "Proyector detectado — escaneá para controlarlo"
-        statusLabel.textColor = .systemGreen
+        statusLabel.textColor = Style.text
         refreshQR()
     }
 
@@ -267,11 +287,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshStatus() {
         if connectedPhones > 0 {
             statusLabel.stringValue = "● Celular conectado"
-            statusLabel.textColor = .systemGreen
+            statusLabel.textColor = Style.text
             hintLabel.stringValue = "Deslizá para cambiar de diapositiva. Pellizcá para hacer zoom."
         } else {
             statusLabel.stringValue = "Esperando el celular…"
-            statusLabel.textColor = .secondaryLabelColor
+            statusLabel.textColor = Style.textSoft
             hintLabel.stringValue = "La Mac y el celular tienen que estar en la misma red. Si el Wi-Fi de la facultad los aísla, usá el hotspot del celular."
         }
     }
@@ -352,10 +372,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Permissions
 
     private func showPermission(title: String, hint: String) {
-        permissionButton.title = title
+        permissionButton.setLabel(title)
         permissionButton.isHidden = false
         statusLabel.stringValue = "Falta un permiso"
-        statusLabel.textColor = .systemOrange
+        statusLabel.textColor = Style.warn
         hintLabel.stringValue = hint
     }
 

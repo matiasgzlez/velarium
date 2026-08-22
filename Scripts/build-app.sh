@@ -50,8 +50,21 @@ if [ -f "Resources/Velarium.icns" ]; then
   echo "==> Ícono incluido"
 fi
 
-echo "==> Firmando (ad-hoc, sólo para uso local)"
-codesign --force --deep --sign - "$APP"
+# macOS ata los permisos de pantalla y accesibilidad a la firma del binario. Una
+# firma ad-hoc cambia de hash en cada compilación, así que el permiso concedido
+# deja de valer y la app vuelve a pedirlo aunque el interruptor siga en Ajustes.
+# Con un certificado de desarrollo la firma es estable y el permiso sobrevive.
+DEV_ID=$(security find-identity -v -p codesigning 2>/dev/null \
+  | grep "Apple Development" | head -1 | awk '{print $2}')
+
+if [ -n "$DEV_ID" ]; then
+  echo "==> Firmando con el certificado de desarrollo"
+  codesign --force --deep --options runtime --sign "$DEV_ID" "$APP"
+else
+  echo "==> Firmando ad-hoc (sin certificado de desarrollo)"
+  echo "    Ojo: vas a tener que volver a dar los permisos en cada compilación."
+  codesign --force --deep --sign - "$APP"
+fi
 
 echo
 echo "Listo: $APP"
