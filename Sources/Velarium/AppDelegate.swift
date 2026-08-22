@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let qrView = NSImageView()
     private let urlLabel = NSTextField(labelWithString: "")
     private let statusLabel = NSTextField(labelWithString: "Iniciando…")
+    private let sourceLabel = NSTextField(labelWithString: "")
     private let hintLabel = NSTextField(labelWithString: "")
     private let displayPicker = NSPopUpButton()
     private var permissionButton: PillButton!
@@ -37,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildWindow()
+        refreshSource()
         buildStatusItem()
         startServers()
         watchNetwork()
@@ -81,6 +83,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         urlLabel.alignment = .center
         urlLabel.isSelectable = true
 
+        sourceLabel.font = Style.body(11)
+        sourceLabel.textColor = Style.textSoft
+        sourceLabel.alignment = .center
+        sourceLabel.maximumNumberOfLines = 2
+        sourceLabel.lineBreakMode = .byWordWrapping
+
         statusLabel.font = Style.label(13, .heavy)
         statusLabel.textColor = Style.text
         statusLabel.alignment = .center
@@ -100,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         permissionButton.isHidden = true
 
         let stack = NSStackView(views: [
-            title, subtitle, qrCard, urlLabel, statusLabel, permissionButton, displayPicker, hintLabel
+            title, subtitle, qrCard, urlLabel, sourceLabel, statusLabel, permissionButton, displayPicker, hintLabel
         ])
         stack.orientation = .vertical
         stack.alignment = .centerX
@@ -108,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         stack.setCustomSpacing(6, after: title)
         stack.setCustomSpacing(24, after: subtitle)
         stack.setCustomSpacing(18, after: qrCard)
+        stack.setCustomSpacing(4, after: urlLabel)
         stack.setCustomSpacing(16, after: statusLabel)
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
@@ -125,6 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             qrView.leadingAnchor.constraint(equalTo: qrCard.leadingAnchor, constant: pad),
             qrView.trailingAnchor.constraint(equalTo: qrCard.trailingAnchor, constant: -pad),
 
+            sourceLabel.widthAnchor.constraint(equalToConstant: 350),
             hintLabel.widthAnchor.constraint(equalToConstant: 350),
         ])
 
@@ -193,8 +203,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await capturer.start(displayID: target)
                 log("cambiado a la pantalla \(target)")
             }
+            refreshSource()
             if gained { announceProjector() }
         }
+    }
+
+    /// Sin proyector la app no está rota: espeja la pantalla de la Mac. Pero eso
+    /// hay que decirlo, o parece que falta enchufar algo para que sirva.
+    private func refreshSource() {
+        sourceLabel.stringValue = NSScreen.screens.count > 1
+            ? "Espejando el proyector"
+            : "Espejando la pantalla de la Mac · conectá el proyector cuando quieras"
     }
 
     private func announceProjector() {
@@ -311,6 +330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         permissionButton.isHidden = true
+        refreshSource()
 
         capturer.onFrame = { [weak self] frame in
             guard let self else { return }
