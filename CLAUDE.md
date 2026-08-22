@@ -89,6 +89,10 @@ python3 -m http.server 4321 --directory site   # la landing, que no tiene build
   mismo y quedaba fuera del duplicado por AirPlay. Ahora se le manda ⌘+ a la app
   de adelante, que redibuja nítida. El costo: no funciona en Keynote ni
   PowerPoint en modo presentación, que ignoran ese atajo.
+- **Los keycodes son posiciones, no caracteres.** `0x18` es la tecla que da `=` en
+  un teclado US y otra cosa en uno español; con Spanish-ISO el atajo llegaba como
+  ⌘ más una tecla cualquiera y no pasaba nada. `InputController.keyPosition(of:)`
+  resuelve la posición contra el layout activo. Ojo al agregar atajos nuevos.
 - **`Bundle.module` no sirve acá.** En un target ejecutable busca los recursos al lado del
   binario, no en `Contents/Resources`, y aborta el proceso si no los encuentra en vez de
   devolver nil. Se usa `AppDelegate.locateWebRoot()`.
