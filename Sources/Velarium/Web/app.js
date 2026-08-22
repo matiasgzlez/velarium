@@ -152,6 +152,13 @@
   const TAP_SLOP = 12;
   const TAP_TIME = 350;
 
+  // Safari en iOS ignora maximum-scale y user-scalable, y touch-action tampoco
+  // frena su pinch-zoom: la página se agranda entera y nuestro handler nunca
+  // llega a mandar el zoom a la Mac. Sus eventos de gesto son la única forma.
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+  }
+
   let start = null;      // one-finger gesture origin
   let pinch = null;      // two-finger gesture origin
 
@@ -167,6 +174,7 @@
   document.addEventListener('touchstart', (event) => {
     wake();
     if (event.touches.length === 2) {
+      event.preventDefault();
       const [a, b] = event.touches;
       const mid = localPoint({
         clientX: (a.clientX + b.clientX) / 2,
@@ -182,9 +190,12 @@
       const touch = event.touches[0];
       start = { x: touch.clientX, y: touch.clientY, at: Date.now(), fx, fy };
     }
-  }, { passive: true });
+  }, { passive: false });
 
   document.addEventListener('touchmove', (event) => {
+    // La pantalla entera es superficie de control: acá no se desplaza ni se
+    // hace zoom de la página, nunca.
+    event.preventDefault();
     if (pinch && event.touches.length === 2) {
       const [a, b] = event.touches;
       const next = clamp(pinch.scale * (distance(a, b) / pinch.distance), 1, MAX_ZOOM);
@@ -212,7 +223,7 @@
       applyTransform();
       pushZoom();
     }
-  }, { passive: true });
+  }, { passive: false });
 
   document.addEventListener('touchend', (event) => {
     if (pinch && event.touches.length < 2) {
