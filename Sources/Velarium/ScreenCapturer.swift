@@ -39,22 +39,36 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
     static func requestPermission() -> Bool { CGRequestScreenCaptureAccess() }
 
     func refreshDisplays() async throws -> [SCDisplay] {
-        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
-        displays = content.displays
+        displays = try await shareableContent().displays
         return displays
+    }
+
+    private func shareableContent() async throws -> SCShareableContent {
+        try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
     }
 
     func start(displayID: CGDirectDisplayID? = nil) async throws {
         await stop()
 
-        let available = try await refreshDisplays()
-        guard let display = available.first(where: { $0.displayID == displayID }) ?? available.first else {
+        let content = try await shareableContent()
+        displays = content.displays
+        guard let display = displays.first(where: { $0.displayID == displayID }) ?? displays.first else {
             throw NSError(domain: "Velarium", code: 3,
                           userInfo: [NSLocalizedDescriptionKey: "No se encontró ninguna pantalla"])
         }
         activeDisplayID = display.displayID
 
-        let filter = SCContentFilter(display: display, excludingWindows: [])
+        // ScreenCaptureKit no respeta `NSWindow.sharingType`: si no lo excluimos
+        // acá, el overlay de zoom se captura a sí mismo y se realimenta — zoom
+        // del zoom, que en pantalla se ve como un temblor que va perdiendo
+        // calidad. Se excluye Velarium entera, así tampoco viaja al celular la
+        // ventana del QR.
+        let ourApp = content.applications.filter {
+            $0.bundleIdentifier == Bundle.main.bundleIdentifier
+        }
+        let filter = SCContentFilter(display: display,
+                                     excludingApplications: ourApp,
+                                     exceptingWindows: [])
         let config = SCStreamConfiguration()
 
         // Cap the capture so a 5K display doesn't cost more GPU than the job needs,

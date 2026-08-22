@@ -3,8 +3,10 @@ import AppKit
 /// A click-through window that covers the display and shows a magnified copy of it.
 ///
 /// We already hold every frame at native resolution, so magnifying is just a matter
-/// of drawing the latest one scaled and offset. The window sets `sharingType = .none`
-/// so ScreenCaptureKit never captures it — without that we would magnify our own output.
+/// of drawing the latest one scaled and offset. Keeping this window out of the capture
+/// is what stops it from magnifying its own output, and that exclusion lives in
+/// `ScreenCapturer.start()`: ScreenCaptureKit ignores `sharingType`, so the filter has
+/// to exclude the app. `sharingType = .none` below only covers screenshots and sharing.
 final class ZoomOverlay {
 
     private var window: NSWindow?

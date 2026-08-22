@@ -23,6 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionButton: PillButton!
     private let qrCard = Style.card()
 
+    /// El último frame capturado. Con diapositivas quietas ScreenCaptureKit no
+    /// entrega nada nuevo, así que sin esto el overlay abriría en negro y se
+    /// quedaría así hasta que algo en la pantalla cambiara.
+    private var lastFrame: CGImage?
     private var connectedPhones = 0
     private var framesSent = 0
     private var statusItem: NSStatusItem?
@@ -337,8 +341,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.sockets.broadcast(frame: frame.jpeg)
             self.framesSent += 1
             if self.framesSent % 100 == 1 { self.log("frames enviados: \(self.framesSent)") }
-            guard self.overlay.isActive else { return }
-            DispatchQueue.main.async { self.overlay.present(frame.full) }
+            DispatchQueue.main.async {
+                self.lastFrame = frame.full
+                guard self.overlay.isActive else { return }
+                self.overlay.present(frame.full)
+            }
         }
         capturer.onStopped = { [weak self] message in
             self?.statusLabel.stringValue = "Captura detenida: \(message)"
@@ -426,6 +433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 overlay.hide()
             } else {
                 overlay.show(on: capturer.activeDisplayID)
+                if let lastFrame { overlay.present(lastFrame) }
                 overlay.update(scale: CGFloat(scale), x: CGFloat(x), y: CGFloat(y))
             }
         case .zoomEnded:
