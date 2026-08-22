@@ -18,7 +18,9 @@ echo "==> Armando el bundle"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Velarium"
-cp -R "$RES" "$APP/Contents/Resources/"
+# Los recursos van sueltos en Contents/Resources, que es donde los busca una
+# app de macOS; el bundle de SwiftPM sólo sirve cuando se corre con swift run.
+cp -R "$RES/Web" "$APP/Contents/Resources/Web"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

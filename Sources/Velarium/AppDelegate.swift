@@ -186,8 +186,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Servers
 
+    /// Los archivos web viven en distinto lugar según cómo arranque el proceso:
+    /// dentro del .app quedan en Contents/Resources, y con `swift run` SwiftPM
+    /// deja su bundle de recursos al lado del binario. `Bundle.module` sólo
+    /// contempla lo segundo, y ante la duda aborta el proceso en vez de devolver
+    /// nil — por eso lo resolvemos a mano y podemos avisar en pantalla.
+    private static func locateWebRoot() -> URL? {
+        let bundle = "Velarium_Velarium.bundle"
+        let candidates = [
+            Bundle.main.resourceURL?.appendingPathComponent("Web"),
+            Bundle.main.resourceURL?.appendingPathComponent(bundle).appendingPathComponent("Web"),
+            Bundle.main.bundleURL.appendingPathComponent(bundle).appendingPathComponent("Web"),
+        ]
+        return candidates.compactMap { $0 }.first {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+    }
+
     private func startServers() {
-        guard let webRoot = Bundle.module.url(forResource: "Web", withExtension: nil) else {
+        guard let webRoot = Self.locateWebRoot() else {
             statusLabel.stringValue = "No se encontraron los archivos web"
             return
         }
