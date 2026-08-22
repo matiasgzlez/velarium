@@ -4,9 +4,8 @@ import AppKit
 ///
 /// We already hold every frame at native resolution, so magnifying is just a matter
 /// of drawing the latest one scaled and offset. Keeping this window out of the capture
-/// is what stops it from magnifying its own output, and that exclusion lives in
-/// `ScreenCapturer.start()`: ScreenCaptureKit ignores `sharingType`, so the filter has
-/// to exclude the app. `sharingType = .none` below only covers screenshots and sharing.
+/// is what stops it from magnifying its own output, and that exclusion lives entirely in
+/// `ScreenCapturer.start()`, which drops the whole app from the capture filter.
 final class ZoomOverlay {
 
     private var window: NSWindow?
@@ -39,7 +38,11 @@ final class ZoomOverlay {
         window.hasShadow = false
         // Above full-screen slideshows, and never part of what we capture.
         window.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()) + 1)
-        window.sharingType = .none
+        // Nada de `sharingType = .none`: el duplicado por AirPlay es una captura,
+        // y esa marca lo dejaba fuera también de ahí — el zoom se veía en la
+        // pantalla de la Mac pero nunca en el proyector, que es donde importa.
+        // Que el overlay no se capture a sí mismo ya lo resuelve el filtro de
+        // ScreenCapturer.start(), que excluye la app entera.
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
 
         let host = NSView(frame: screen.frame)
